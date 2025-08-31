@@ -27,6 +27,7 @@ services:
     volumes:
       - wordpress_data:/var/www/html
       - ./plugin/my-custom-plugin:/var/www/html/wp-content/plugins/my-custom-plugin
+      - ./plugin/storage-limit-manager:/var/www/html/wp-content/plugins/storage-limit-manager
     depends_on:
       db:
         condition: service_healthy

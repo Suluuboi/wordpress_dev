@@ -1,0 +1,265 @@
+/* Storage Limit Manager Admin Styles */
+
+/* Storage Notice Bar */
+.slm-storage-notice {
+    border-left: 4px solid #0073aa;
+    padding: 12px;
+    margin: 5px 0 15px;
+    background: #fff;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.slm-storage-info h4 {
+    margin: 0 0 10px 0;
+    color: #23282d;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Progress Bar Styles */
+.slm-progress-container {
+    width: 100%;
+    height: 20px;
+    background-color: #f1f1f1;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 8px 0;
+    position: relative;
+}
+
+.slm-progress-bar {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.slm-progress-normal {
+    background: linear-gradient(90deg, #00a32a, #4caf50);
+}
+
+.slm-progress-warning {
+    background: linear-gradient(90deg, #ff9800, #ffc107);
+}
+
+.slm-progress-critical {
+    background: linear-gradient(90deg, #dc3232, #f44336);
+}
+
+.slm-usage-text {
+    margin: 5px 0 0 0;
+    font-size: 13px;
+    color: #666;
+}
+
+/* Admin Page Styles */
+.slm-admin-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.slm-usage-stats,
+.slm-settings-form {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.slm-usage-stats h2,
+.slm-settings-form h2 {
+    margin-top: 0;
+    color: #23282d;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+/* Statistics Grid */
+.slm-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.slm-stat-item {
+    text-align: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e1e5e9;
+}
+
+.slm-stat-item h3 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.slm-stat-value {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #23282d;
+}
+
+/* Progress Section */
+.slm-progress-section {
+    margin: 25px 0;
+}
+
+.slm-progress-section h3 {
+    margin: 0 0 10px 0;
+    color: #23282d;
+    font-size: 16px;
+}
+
+.slm-admin-progress {
+    height: 25px;
+    margin: 10px 0;
+}
+
+.slm-progress-text {
+    margin: 8px 0 0 0;
+    font-size: 14px;
+    color: #555;
+    text-align: center;
+}
+
+/* Recalculate Button */
+#slm-recalculate {
+    margin-top: 15px;
+}
+
+#slm-recalculate-status {
+    margin-left: 10px;
+    font-style: italic;
+    color: #666;
+}
+
+#slm-recalculate-status.success {
+    color: #00a32a;
+}
+
+#slm-recalculate-status.error {
+    color: #dc3232;
+}
+
+/* Settings Form Styles */
+.slm-settings-form .form-table {
+    margin-top: 0;
+}
+
+.slm-settings-form .form-table th {
+    padding-left: 0;
+    font-weight: 600;
+}
+
+.slm-settings-form .form-table td {
+    padding-left: 0;
+}
+
+.slm-settings-form input[type="number"] {
+    width: 100px;
+}
+
+.slm-settings-form .description {
+    font-style: italic;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .slm-admin-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .slm-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .slm-storage-notice {
+        margin: 5px 0 10px;
+        padding: 10px;
+    }
+    
+    .slm-progress-container {
+        height: 18px;
+    }
+    
+    .slm-admin-progress {
+        height: 22px;
+    }
+}
+
+@media (max-width: 480px) {
+    .slm-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .slm-stat-value {
+        font-size: 16px;
+    }
+    
+    .slm-usage-text {
+        font-size: 12px;
+    }
+}
+
+/* Loading Animation */
+.slm-loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0073aa;
+    border-radius: 50%;
+    animation: slm-spin 1s linear infinite;
+    margin-left: 5px;
+}
+
+@keyframes slm-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Notice Variations */
+.slm-storage-notice.notice-warning {
+    border-left-color: #ff9800;
+}
+
+.slm-storage-notice.notice-error {
+    border-left-color: #dc3232;
+}
+
+/* Accessibility Improvements */
+.slm-progress-bar:focus {
+    outline: 2px solid #0073aa;
+    outline-offset: 2px;
+}
+
+.slm-stat-item:hover {
+    background: #f0f0f1;
+    transition: background-color 0.2s ease;
+}
+
+/* Print Styles */
+@media print {
+    .slm-storage-notice,
+    .slm-admin-container {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+    
+    .slm-progress-bar {
+        background: #000 !important;
+    }
+}
