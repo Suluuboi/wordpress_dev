@@ -22,10 +22,37 @@ class SLM_Upload_Handler
      */
     public function __construct()
     {
+        // Core WordPress upload filters
         add_filter('wp_handle_upload_prefilter', array($this, 'check_upload_limit'));
         add_filter('wp_handle_sideload_prefilter', array($this, 'check_upload_limit'));
+
+        // Standard WordPress AJAX upload actions
         add_action('wp_ajax_upload-attachment', array($this, 'check_ajax_upload'), 1);
         add_action('wp_ajax_nopriv_upload-attachment', array($this, 'check_ajax_upload'), 1);
+
+        // Elementor specific upload actions
+        add_action('wp_ajax_elementor_ajax', array($this, 'check_elementor_uploads'), 1);
+        add_action('wp_ajax_nopriv_elementor_ajax', array($this, 'check_elementor_uploads'), 1);
+
+        // Additional third-party plugin upload actions
+        add_action('wp_ajax_upload_image', array($this, 'check_ajax_upload'), 1);
+        add_action('wp_ajax_nopriv_upload_image', array($this, 'check_ajax_upload'), 1);
+        add_action('wp_ajax_upload_file', array($this, 'check_ajax_upload'), 1);
+        add_action('wp_ajax_nopriv_upload_file', array($this, 'check_ajax_upload'), 1);
+
+        // Hook into file system operations
+        add_filter('wp_handle_upload', array($this, 'track_successful_upload'), 10, 2);
+
+        // Add early upload size check for all AJAX requests
+        add_action('wp_ajax_nopriv_init', array($this, 'early_upload_check'), 1);
+        add_action('wp_ajax_init', array($this, 'early_upload_check'), 1);
+
+        // Hook into media library operations
+        add_action('wp_ajax_query-attachments', array($this, 'inject_storage_info'), 1);
+
+        // Add upload restrictions display
+        add_action('post-upload-ui', array($this, 'display_upload_restrictions'));
+        add_action('pre-upload-ui', array($this, 'display_upload_restrictions'));
     }
 
     /**
@@ -54,7 +81,7 @@ class SLM_Upload_Handler
         // Check if upload would exceed limit
         if ($calculator->would_exceed_limit($file_size)) {
             $stats = $calculator->get_usage_statistics();
-            
+
             $file['error'] = sprintf(
                 __('Upload failed: This file would exceed your storage limit of %s. Current usage: %s. Please upgrade your plan or delete some files to free up space.', 'storage-limit-manager'),
                 $stats['formatted']['max'],
@@ -86,7 +113,7 @@ class SLM_Upload_Handler
         }
 
         $calculator = StorageLimitManager::instance()->storage_calculator;
-        
+
         // Check each uploaded file
         foreach ($_FILES as $file_key => $file_data) {
             if (isset($file_data['size']) && is_array($file_data['size'])) {
@@ -115,7 +142,7 @@ class SLM_Upload_Handler
     private function send_upload_error($calculator)
     {
         $stats = $calculator->get_usage_statistics();
-        
+
         $error_message = sprintf(
             __('Upload failed: This file would exceed your storage limit of %s. Current usage: %s. Please upgrade your plan or delete some files to free up space.', 'storage-limit-manager'),
             $stats['formatted']['max'],
@@ -172,7 +199,7 @@ class SLM_Upload_Handler
         // Check if file would exceed limit
         if ($calculator->would_exceed_limit($file_size)) {
             $stats = $calculator->get_usage_statistics();
-            
+
             return array(
                 'success' => false,
                 'message' => sprintf(
@@ -273,7 +300,7 @@ class SLM_Upload_Handler
             $calculator->format_bytes($restrictions['max_storage_bytes']),
             number_format($restrictions['percentage_used'], 1)
         ) . '</p>';
-        
+
         if ($restrictions['remaining_bytes'] > 0) {
             echo '<p>' . sprintf(
                 __('Maximum file size: %s', 'storage-limit-manager'),
@@ -283,5 +310,121 @@ class SLM_Upload_Handler
             echo '<p class="slm-error">' . __('Storage limit reached. Please delete some files before uploading.', 'storage-limit-manager') . '</p>';
         }
         echo '</div>';
+    }
+
+    /**
+     * Check Elementor specific uploads
+     */
+    public function check_elementor_uploads()
+    {
+        // Check if this is an Elementor upload request
+        $action = isset($_POST['actions']) ? $_POST['actions'] : '';
+
+        if (empty($action)) {
+            return;
+        }
+
+        // Parse Elementor actions (they send JSON)
+        $actions = json_decode(stripslashes($action), true);
+
+        if (!is_array($actions)) {
+            return;
+        }
+
+        // Look for upload-related actions
+        foreach ($actions as $action_data) {
+            if (
+                isset($action_data['action']) &&
+                (strpos($action_data['action'], 'upload') !== false ||
+                    strpos($action_data['action'], 'media') !== false)
+            ) {
+
+                // Check if we have file uploads
+                if (!empty($_FILES)) {
+                    $this->check_ajax_upload();
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Early upload check for all AJAX requests
+     */
+    public function early_upload_check()
+    {
+        // Only check if we have files being uploaded
+        if (empty($_FILES)) {
+            return;
+        }
+
+        $settings = StorageLimitManager::instance()->settings->get_settings();
+
+        // Skip check if blocking is disabled
+        if (!$settings['block_uploads']) {
+            return;
+        }
+
+        $calculator = StorageLimitManager::instance()->storage_calculator;
+
+        // Check all uploaded files
+        foreach ($_FILES as $file_data) {
+            if (isset($file_data['size'])) {
+                if (is_array($file_data['size'])) {
+                    // Multiple files
+                    foreach ($file_data['size'] as $file_size) {
+                        if ($calculator->would_exceed_limit($file_size)) {
+                            $this->send_upload_error($calculator);
+                            return;
+                        }
+                    }
+                } else {
+                    // Single file
+                    if ($calculator->would_exceed_limit($file_data['size'])) {
+                        $this->send_upload_error($calculator);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Track successful uploads for usage calculation
+     *
+     * @param array $upload Upload data
+     * @param string $context Upload context
+     * @return array Upload data
+     */
+    public function track_successful_upload($upload, $context = 'upload')
+    {
+        // This runs after a successful upload
+        if (isset($upload['file']) && file_exists($upload['file'])) {
+            $file_size = filesize($upload['file']);
+
+            // Log the upload for debugging
+            do_action('slm_upload_tracked', $upload['file'], $file_size, $context);
+        }
+
+        return $upload;
+    }
+
+    /**
+     * Inject storage information into media library queries
+     */
+    public function inject_storage_info()
+    {
+        $restrictions = $this->get_upload_restrictions();
+
+        // Add storage info to the response
+        add_filter('wp_prepare_attachment_for_js', function ($response, $attachment, $meta) use ($restrictions) {
+            $response['slm_storage_info'] = array(
+                'can_upload' => $restrictions['can_upload'],
+                'remaining_bytes' => $restrictions['remaining_bytes'],
+                'percentage_used' => $restrictions['percentage_used'],
+                'status' => $restrictions['status']
+            );
+            return $response;
+        }, 10, 3);
     }
 }

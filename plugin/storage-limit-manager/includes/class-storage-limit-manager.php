@@ -67,6 +67,13 @@ class StorageLimitManager
     public $ajax = null;
 
     /**
+     * Plugin integrations instance
+     *
+     * @var SLM_Plugin_Integrations
+     */
+    public $plugin_integrations = null;
+
+    /**
      * Main StorageLimitManager Instance
      *
      * Ensures only one instance of StorageLimitManager is loaded or can be loaded.
@@ -125,6 +132,7 @@ class StorageLimitManager
         include_once SLM_PLUGIN_PATH . 'includes/class-slm-storage-calculator.php';
         include_once SLM_PLUGIN_PATH . 'includes/class-slm-upload-handler.php';
         include_once SLM_PLUGIN_PATH . 'includes/class-slm-ajax.php';
+        include_once SLM_PLUGIN_PATH . 'includes/class-slm-plugin-integrations.php';
 
         // Admin classes
         if (is_admin()) {
@@ -159,6 +167,7 @@ class StorageLimitManager
         $this->storage_calculator = new SLM_Storage_Calculator();
         $this->upload_handler = new SLM_Upload_Handler();
         $this->ajax = new SLM_Ajax();
+        $this->plugin_integrations = new SLM_Plugin_Integrations();
 
         if (is_admin()) {
             $this->admin = new SLM_Admin();

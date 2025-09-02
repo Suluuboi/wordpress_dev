@@ -50,7 +50,7 @@ class SLM_Ajax
         }
 
         $calculator = StorageLimitManager::instance()->storage_calculator;
-        
+
         try {
             $total_size = $calculator->recalculate_total_usage();
             $stats = $calculator->get_usage_statistics();
@@ -164,7 +164,7 @@ class SLM_Ajax
         }
 
         $settings = StorageLimitManager::instance()->settings;
-        
+
         // Sanitize the value based on the setting type
         switch ($setting_key) {
             case 'max_storage_mb':

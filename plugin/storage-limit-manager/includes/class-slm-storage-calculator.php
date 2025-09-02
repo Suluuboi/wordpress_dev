@@ -141,7 +141,6 @@ class SLM_Storage_Calculator
             if (count($attachments) < $batch_size) {
                 break;
             }
-
         } while (count($attachments) > 0);
 
         $this->update_usage_data($total_size);
@@ -161,7 +160,7 @@ class SLM_Storage_Calculator
     {
         $usage_data = get_option($this->usage_option);
         $settings = StorageLimitManager::instance()->settings->get_settings();
-        
+
         $current_usage = $this->get_current_usage();
         $max_storage_bytes = $settings['max_storage_mb'] * 1024 * 1024;
         $percentage = $max_storage_bytes > 0 ? ($current_usage / $max_storage_bytes) * 100 : 0;
