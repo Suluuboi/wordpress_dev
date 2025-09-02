@@ -66,7 +66,15 @@ if (!defined('ABSPATH')) {
             <button type="button" id="slm-recalculate" class="button button-secondary">
                 <?php _e('Recalculate Usage', 'storage-limit-manager'); ?>
             </button>
-            <span id="slm-recalculate-status"></span>
+
+            <button type="button" id="slm-repair-attachments" class="button button-secondary" style="margin-left: 10px;">
+                <?php _e('Repair Damaged Files', 'storage-limit-manager'); ?>
+            </button>
+
+            <div style="margin-top: 10px;">
+                <span id="slm-recalculate-status"></span>
+                <span id="slm-repair-status"></span>
+            </div>
         </div>
 
         <!-- Settings Form -->

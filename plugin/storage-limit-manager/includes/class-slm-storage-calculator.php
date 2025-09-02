@@ -31,6 +31,19 @@ class SLM_Storage_Calculator
     {
         add_action('add_attachment', array($this, 'update_usage_on_upload'));
         add_action('delete_attachment', array($this, 'update_usage_on_delete'));
+
+        // SAFER APPROACH: Only trigger recalculation after WordPress has fully processed uploads
+        // Use add_attachment hook which fires AFTER the attachment is fully created
+        add_action('add_attachment', array($this, 'schedule_recalculation_after_attachment'), 20);
+
+        // Also trigger on attachment updates (when metadata is added)
+        add_action('wp_update_attachment_metadata', array($this, 'schedule_recalculation_after_metadata'), 10, 2);
+
+        // Initialize WP Cron hooks for safe delayed recalculation
+        $this->init_cron_hooks();
+
+        // Schedule recalculation to run after request completes (with delay)
+        add_action('shutdown', array($this, 'maybe_run_scheduled_recalculation'));
     }
 
     /**
@@ -141,7 +154,6 @@ class SLM_Storage_Calculator
             if (count($attachments) < $batch_size) {
                 break;
             }
-
         } while (count($attachments) > 0);
 
         $this->update_usage_data($total_size);
@@ -161,7 +173,7 @@ class SLM_Storage_Calculator
     {
         $usage_data = get_option($this->usage_option);
         $settings = StorageLimitManager::instance()->settings->get_settings();
-        
+
         $current_usage = $this->get_current_usage();
         $max_storage_bytes = $settings['max_storage_mb'] * 1024 * 1024;
         $percentage = $max_storage_bytes > 0 ? ($current_usage / $max_storage_bytes) * 100 : 0;
@@ -284,5 +296,95 @@ class SLM_Storage_Calculator
     {
         delete_option($this->usage_option);
         do_action('slm_usage_cache_cleared');
+    }
+
+    /**
+     * Schedule recalculation after attachment is fully created
+     * This is SAFER than hooking into wp_handle_upload
+     *
+     * @param int $attachment_id Attachment ID
+     */
+    public function schedule_recalculation_after_attachment($attachment_id)
+    {
+        // Only schedule if this is a valid attachment
+        if (get_post_type($attachment_id) === 'attachment') {
+            $this->schedule_recalculation();
+        }
+    }
+
+    /**
+     * Schedule recalculation after attachment metadata is updated
+     * This ensures the file is fully processed
+     *
+     * @param array $data Attachment metadata
+     * @param int $attachment_id Attachment ID
+     */
+    public function schedule_recalculation_after_metadata($data, $attachment_id)
+    {
+        // Only schedule if this is a valid attachment with metadata
+        if (get_post_type($attachment_id) === 'attachment' && !empty($data)) {
+            $this->schedule_recalculation();
+        }
+    }
+
+    /**
+     * Schedule a recalculation to run at the end of the request
+     */
+    public function schedule_recalculation()
+    {
+        // Set a flag to run recalculation on shutdown
+        if (!get_transient('slm_recalculation_scheduled')) {
+            set_transient('slm_recalculation_scheduled', true, 60); // 1 minute expiry
+        }
+    }
+
+    /**
+     * Maybe run scheduled recalculation
+     * SAFER APPROACH: Use WP Cron for delayed execution
+     */
+    public function maybe_run_scheduled_recalculation()
+    {
+        // Only run if recalculation is scheduled
+        if (get_transient('slm_recalculation_scheduled')) {
+            delete_transient('slm_recalculation_scheduled');
+
+            // Schedule via WP Cron with a 30-second delay to ensure files are fully processed
+            if (!wp_next_scheduled('slm_delayed_recalculation')) {
+                wp_schedule_single_event(time() + 30, 'slm_delayed_recalculation');
+            }
+        }
+    }
+
+    /**
+     * Initialize WP Cron hook for delayed recalculation
+     */
+    public function init_cron_hooks()
+    {
+        add_action('slm_delayed_recalculation', array($this, 'run_delayed_recalculation'));
+    }
+
+    /**
+     * Run delayed recalculation via WP Cron
+     */
+    public function run_delayed_recalculation()
+    {
+        $this->recalculate_total_usage();
+
+        // Set flag to indicate auto-recalculation occurred
+        set_transient('slm_auto_recalculated', true, 300); // 5 minutes
+    }
+
+    /**
+     * Force immediate recalculation (for manual button and critical operations)
+     *
+     * @return int Total size in bytes
+     */
+    public function force_recalculate_usage()
+    {
+        // Clear any scheduled recalculation
+        delete_transient('slm_recalculation_scheduled');
+
+        // Run immediate recalculation
+        return $this->recalculate_total_usage();
     }
 }

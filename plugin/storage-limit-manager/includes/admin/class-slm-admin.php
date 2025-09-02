@@ -33,12 +33,22 @@ class SLM_Admin
      */
     public function add_admin_menu()
     {
-        add_options_page(
+        $main_page = add_options_page(
             __('Storage Limit Manager', 'storage-limit-manager'),
             __('Storage Limits', 'storage-limit-manager'),
             'manage_options',
             'storage-limit-manager',
             array($this, 'admin_page')
+        );
+
+        // Add integrations submenu
+        add_submenu_page(
+            'options-general.php',
+            __('Plugin Integrations - Storage Limit Manager', 'storage-limit-manager'),
+            __('Plugin Integrations', 'storage-limit-manager'),
+            'manage_options',
+            'storage-limit-integrations',
+            array($this, 'integrations_page')
         );
     }
 
@@ -48,7 +58,7 @@ class SLM_Admin
     public function admin_init()
     {
         $settings = StorageLimitManager::instance()->settings;
-        
+
         register_setting('slm_settings_group', $settings->get_option_name(), array($settings, 'sanitize_settings'));
 
         add_settings_section(
@@ -109,7 +119,7 @@ class SLM_Admin
     {
         $settings = StorageLimitManager::instance()->settings;
         $calculator = StorageLimitManager::instance()->storage_calculator;
-        
+
         $settings_data = $settings->get_settings();
 
         if (!$settings_data['show_progress_bar']) {
@@ -137,7 +147,7 @@ class SLM_Admin
 
         echo '<div class="notice notice-info slm-storage-notice">';
         echo '<div class="slm-storage-info">';
-        echo '<h4>' . __('Storage Usage', 'storage-limit-manager') . '</h4>';
+        echo '<h4>' . __('Storage Usage (Hans)', 'storage-limit-manager') . '</h4>';
         echo '<div class="slm-progress-container">';
         echo '<div class="slm-progress-bar ' . esc_attr($bar_class) . '" style="width: ' . esc_attr($percentage) . '%"></div>';
         echo '</div>';
@@ -179,7 +189,7 @@ class SLM_Admin
         $settings = StorageLimitManager::instance()->settings;
         $settings_data = $settings->get_settings();
         $option_name = $settings->get_option_name();
-        
+
         echo '<input type="number" name="' . esc_attr($option_name) . '[max_storage_mb]" value="' . esc_attr($settings_data['max_storage_mb']) . '" min="1" />';
         echo '<p class="description">' . __('Maximum storage allowed in megabytes (MB). 1000 MB = 1 GB', 'storage-limit-manager') . '</p>';
     }
@@ -189,7 +199,7 @@ class SLM_Admin
         $settings = StorageLimitManager::instance()->settings;
         $settings_data = $settings->get_settings();
         $option_name = $settings->get_option_name();
-        
+
         echo '<input type="checkbox" name="' . esc_attr($option_name) . '[show_progress_bar]" value="1" ' . checked(1, $settings_data['show_progress_bar'], false) . ' />';
         echo '<label>' . __('Display storage progress bar in admin area', 'storage-limit-manager') . '</label>';
     }
@@ -199,7 +209,7 @@ class SLM_Admin
         $settings = StorageLimitManager::instance()->settings;
         $settings_data = $settings->get_settings();
         $option_name = $settings->get_option_name();
-        
+
         echo '<input type="checkbox" name="' . esc_attr($option_name) . '[block_uploads]" value="1" ' . checked(1, $settings_data['block_uploads'], false) . ' />';
         echo '<label>' . __('Block uploads when storage limit is exceeded', 'storage-limit-manager') . '</label>';
     }
@@ -211,7 +221,7 @@ class SLM_Admin
     {
         $settings = StorageLimitManager::instance()->settings;
         $calculator = StorageLimitManager::instance()->storage_calculator;
-        
+
         $settings_data = $settings->get_settings();
         $current_usage = $calculator->get_current_usage();
         $max_storage_bytes = $settings_data['max_storage_mb'] * 1024 * 1024;
@@ -219,5 +229,131 @@ class SLM_Admin
         $percentage = min(100, $percentage);
 
         include SLM_PLUGIN_PATH . 'includes/admin/views/admin-page.php';
+    }
+
+    /**
+     * Plugin integrations page content
+     */
+    public function integrations_page()
+    {
+        $plugin_integrations = StorageLimitManager::instance()->plugin_integrations;
+        $integrated_plugins = $plugin_integrations->get_integrated_plugins();
+
+?>
+        <div class="wrap">
+            <h1><?php _e('Plugin Integrations - Storage Limit Manager', 'storage-limit-manager'); ?></h1>
+
+            <div class="notice notice-info">
+                <p><?php _e('This page shows which plugins are integrated with Storage Limit Manager to ensure upload limits are enforced across all plugins.', 'storage-limit-manager'); ?></p>
+            </div>
+
+            <div class="slm-integrations-grid">
+                <div class="slm-integration-card">
+                    <h3><?php _e('Active Integrations', 'storage-limit-manager'); ?></h3>
+
+                    <?php if (!empty($integrated_plugins)): ?>
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th><?php _e('Plugin', 'storage-limit-manager'); ?></th>
+                                    <th><?php _e('Version', 'storage-limit-manager'); ?></th>
+                                    <th><?php _e('Status', 'storage-limit-manager'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($integrated_plugins as $plugin_key => $plugin_data): ?>
+                                    <tr>
+                                        <td><strong><?php echo esc_html($plugin_data['name']); ?></strong></td>
+                                        <td><?php echo esc_html($plugin_data['version']); ?></td>
+                                        <td>
+                                            <span class="slm-status-badge slm-status-<?php echo esc_attr($plugin_data['status']); ?>">
+                                                <?php echo esc_html(ucfirst($plugin_data['status'])); ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php else: ?>
+                        <p><?php _e('No integrated plugins detected. Install and activate supported plugins to see them here.', 'storage-limit-manager'); ?></p>
+                    <?php endif; ?>
+                </div>
+
+                <div class="slm-integration-card">
+                    <h3><?php _e('Supported Plugins', 'storage-limit-manager'); ?></h3>
+                    <ul class="slm-supported-plugins">
+                        <li><strong>Elementor</strong> - <?php _e('Page builder with media uploads', 'storage-limit-manager'); ?></li>
+                        <li><strong>WooCommerce</strong> - <?php _e('Product image uploads', 'storage-limit-manager'); ?></li>
+                        <li><strong>Contact Form 7</strong> - <?php _e('File upload fields', 'storage-limit-manager'); ?></li>
+                        <li><strong>Gravity Forms</strong> - <?php _e('File upload fields', 'storage-limit-manager'); ?></li>
+                        <li><strong>WP Bakery</strong> - <?php _e('Page builder uploads', 'storage-limit-manager'); ?></li>
+                        <li><strong>Beaver Builder</strong> - <?php _e('Page builder uploads', 'storage-limit-manager'); ?></li>
+                        <li><strong>Divi</strong> - <?php _e('Theme builder uploads', 'storage-limit-manager'); ?></li>
+                    </ul>
+                </div>
+
+                <div class="slm-integration-card">
+                    <h3><?php _e('How It Works', 'storage-limit-manager'); ?></h3>
+                    <p><?php _e('Storage Limit Manager automatically detects and integrates with supported plugins to ensure that all file uploads respect your storage limits, regardless of which plugin initiates the upload.', 'storage-limit-manager'); ?></p>
+
+                    <h4><?php _e('Integration Features:', 'storage-limit-manager'); ?></h4>
+                    <ul>
+                        <li><?php _e('Automatic upload blocking when limits are exceeded', 'storage-limit-manager'); ?></li>
+                        <li><?php _e('Real-time storage usage tracking', 'storage-limit-manager'); ?></li>
+                        <li><?php _e('Consistent error messages across all plugins', 'storage-limit-manager'); ?></li>
+                        <li><?php _e('Client-side validation for better user experience', 'storage-limit-manager'); ?></li>
+                    </ul>
+                </div>
+            </div>
+
+            <style>
+                .slm-integrations-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 20px;
+                    margin-top: 20px;
+                }
+
+                .slm-integration-card {
+                    background: #fff;
+                    border: 1px solid #ccd0d4;
+                    border-radius: 4px;
+                    padding: 20px;
+                }
+
+                .slm-integration-card h3 {
+                    margin-top: 0;
+                    border-bottom: 1px solid #eee;
+                    padding-bottom: 10px;
+                }
+
+                .slm-status-badge {
+                    padding: 4px 8px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-weight: bold;
+                }
+
+                .slm-status-integrated {
+                    background: #d4edda;
+                    color: #155724;
+                }
+
+                .slm-supported-plugins {
+                    list-style: none;
+                    padding: 0;
+                }
+
+                .slm-supported-plugins li {
+                    padding: 8px 0;
+                    border-bottom: 1px solid #eee;
+                }
+
+                .slm-supported-plugins li:last-child {
+                    border-bottom: none;
+                }
+            </style>
+        </div>
+<?php
     }
 }

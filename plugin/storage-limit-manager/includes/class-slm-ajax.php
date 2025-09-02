@@ -28,6 +28,7 @@ class SLM_Ajax
         add_action('wp_ajax_slm_update_setting', array($this, 'update_setting'));
         add_action('wp_ajax_slm_export_settings', array($this, 'export_settings'));
         add_action('wp_ajax_slm_import_settings', array($this, 'import_settings'));
+        add_action('wp_ajax_slm_repair_attachments', array($this, 'repair_attachments'));
     }
 
     /**
@@ -50,9 +51,10 @@ class SLM_Ajax
         }
 
         $calculator = StorageLimitManager::instance()->storage_calculator;
-        
+
         try {
-            $total_size = $calculator->recalculate_total_usage();
+            // Use force recalculation for manual button clicks
+            $total_size = $calculator->force_recalculate_usage();
             $stats = $calculator->get_usage_statistics();
 
             wp_send_json_success(array(
@@ -91,10 +93,22 @@ class SLM_Ajax
         $stats = $calculator->get_usage_statistics();
         $file_stats = $calculator->get_file_count_statistics();
 
+        // Check if auto-recalculation happened recently
+        $auto_recalculated = get_transient('slm_auto_recalculated');
+        if ($auto_recalculated) {
+            delete_transient('slm_auto_recalculated');
+            $stats['auto_recalculated'] = true;
+        } else {
+            $stats['auto_recalculated'] = false;
+        }
+
         wp_send_json_success(array(
             'usage_stats' => $stats,
             'file_stats' => $file_stats,
-            'storage_status' => $calculator->get_storage_status()
+            'storage_status' => $calculator->get_storage_status(),
+            'auto_recalculated' => $stats['auto_recalculated'],
+            'total_bytes' => $stats['total_bytes'],
+            'formatted' => $stats['formatted']
         ));
     }
 
@@ -164,7 +178,7 @@ class SLM_Ajax
         }
 
         $settings = StorageLimitManager::instance()->settings;
-        
+
         // Sanitize the value based on the setting type
         switch ($setting_key) {
             case 'max_storage_mb':
@@ -336,6 +350,63 @@ class SLM_Ajax
 
         wp_send_json_success(array(
             'message' => __('Usage cache cleared successfully.', 'storage-limit-manager')
+        ));
+    }
+
+    /**
+     * AJAX handler for repairing damaged attachment references
+     */
+    public function repair_attachments()
+    {
+        // Verify nonce
+        if (!check_ajax_referer('slm_nonce', 'nonce', false)) {
+            wp_send_json_error(array(
+                'message' => __('Security check failed.', 'storage-limit-manager')
+            ));
+        }
+
+        // Check user capabilities
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array(
+                'message' => __('Insufficient permissions.', 'storage-limit-manager')
+            ));
+        }
+
+        $repaired = 0;
+        $errors = 0;
+
+        // Get all attachments
+        $attachments = get_posts(array(
+            'post_type' => 'attachment',
+            'posts_per_page' => -1,
+            'post_status' => 'inherit'
+        ));
+
+        foreach ($attachments as $attachment) {
+            $file_path = get_attached_file($attachment->ID);
+
+            // Check if file path exists
+            if (!$file_path || !file_exists($file_path)) {
+                // Try to regenerate attachment metadata
+                $metadata = wp_generate_attachment_metadata($attachment->ID, $file_path);
+
+                if ($metadata) {
+                    wp_update_attachment_metadata($attachment->ID, $metadata);
+                    $repaired++;
+                } else {
+                    $errors++;
+                }
+            }
+        }
+
+        wp_send_json_success(array(
+            'message' => sprintf(
+                __('Repair completed. %d attachments repaired, %d errors encountered.', 'storage-limit-manager'),
+                $repaired,
+                $errors
+            ),
+            'repaired' => $repaired,
+            'errors' => $errors
         ));
     }
 }
