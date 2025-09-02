@@ -383,6 +383,11 @@ jQuery(document).ready(function ($) {
     .prop("type", "text/css")
     .html(
       `
+jQuery(document).ready(function ($) {
+  $("<style>")
+    .prop("type", "text/css")
+    .html(
+      `
             .slm-input-message {
                 margin: 5px 0 0 0;
                 font-size: 12px;
@@ -394,6 +399,9 @@ jQuery(document).ready(function ($) {
             .slm-input-message.warning {
                 color: #ff9800;
             }
+        `
+    )
+    .appendTo("head");
         `
     )
     .appendTo("head");

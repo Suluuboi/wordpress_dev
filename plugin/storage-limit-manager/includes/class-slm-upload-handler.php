@@ -29,26 +29,6 @@ class SLM_Upload_Handler
         // Standard WordPress AJAX upload actions
         add_action('wp_ajax_upload-attachment', array($this, 'check_ajax_upload'), 1);
         add_action('wp_ajax_nopriv_upload-attachment', array($this, 'check_ajax_upload'), 1);
-
-        // Elementor specific upload actions
-        add_action('wp_ajax_elementor_ajax', array($this, 'check_elementor_uploads'), 1);
-        add_action('wp_ajax_nopriv_elementor_ajax', array($this, 'check_elementor_uploads'), 1);
-
-        // Additional third-party plugin upload actions
-        add_action('wp_ajax_upload_image', array($this, 'check_ajax_upload'), 1);
-        add_action('wp_ajax_nopriv_upload_image', array($this, 'check_ajax_upload'), 1);
-        add_action('wp_ajax_upload_file', array($this, 'check_ajax_upload'), 1);
-        add_action('wp_ajax_nopriv_upload_file', array($this, 'check_ajax_upload'), 1);
-
-        // REMOVED: Problematic early hooks that can interfere with file processing
-        // The storage calculator now handles recalculation safely via add_attachment hook
-
-        // Hook into media library operations
-        add_action('wp_ajax_query-attachments', array($this, 'inject_storage_info'), 1);
-
-        // Add upload restrictions display
-        add_action('post-upload-ui', array($this, 'display_upload_restrictions'));
-        add_action('pre-upload-ui', array($this, 'display_upload_restrictions'));
     }
 
     /**
@@ -306,64 +286,5 @@ class SLM_Upload_Handler
             echo '<p class="slm-error">' . __('Storage limit reached. Please delete some files before uploading.', 'storage-limit-manager') . '</p>';
         }
         echo '</div>';
-    }
-
-    /**
-     * Check Elementor specific uploads
-     */
-    public function check_elementor_uploads()
-    {
-        // Check if this is an Elementor upload request
-        $action = isset($_POST['actions']) ? $_POST['actions'] : '';
-
-        if (empty($action)) {
-            return;
-        }
-
-        // Parse Elementor actions (they send JSON)
-        $actions = json_decode(stripslashes($action), true);
-
-        if (!is_array($actions)) {
-            return;
-        }
-
-        // Look for upload-related actions
-        foreach ($actions as $action_data) {
-            if (
-                isset($action_data['action']) &&
-                (strpos($action_data['action'], 'upload') !== false ||
-                    strpos($action_data['action'], 'media') !== false)
-            ) {
-
-                // Check if we have file uploads
-                if (!empty($_FILES)) {
-                    $this->check_ajax_upload();
-                    return;
-                }
-            }
-        }
-    }
-
-    // REMOVED: Problematic early upload checking methods
-    // These were interfering with WordPress file processing
-    // Storage limits are still enforced via the prefilter hooks above
-
-    /**
-     * Inject storage information into media library queries
-     */
-    public function inject_storage_info()
-    {
-        $restrictions = $this->get_upload_restrictions();
-
-        // Add storage info to the response
-        add_filter('wp_prepare_attachment_for_js', function ($response, $attachment, $meta) use ($restrictions) {
-            $response['slm_storage_info'] = array(
-                'can_upload' => $restrictions['can_upload'],
-                'remaining_bytes' => $restrictions['remaining_bytes'],
-                'percentage_used' => $restrictions['percentage_used'],
-                'status' => $restrictions['status']
-            );
-            return $response;
-        }, 10, 3);
     }
 }
